@@ -1,49 +1,46 @@
 pipeline {
     agent any
-
     environment {
-        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials' // Change if your credentials ID is different
-        DOCKER_IMAGE_NAME = 'nirby7/simple-nginx-app' // Replace with your Docker Hub image name
-        GIT_REPO_URL = 'https://github.com/nirshar1977/simple-nginx-app.git' // Your GitHub repository URL
-        GIT_BRANCH = 'main' // or 'master' based on your branch
+        DOCKER_IMAGE = 'nirby7/simple-nginx-app'
+        GIT_REPO = 'https://github.com/nirshar1977/simple-nginx-app.git'
+        GIT_BRANCH = 'main'
+        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
     }
-
     stages {
         stage('Clone Repository') {
             steps {
-                // Checkout from the specified branch
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO_URL}"
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
                 script {
-                    // Build the Docker image
-                    docker.build("${DOCKER_IMAGE_NAME}")
+                    git branch: GIT_BRANCH, url: GIT_REPO
                 }
             }
         }
-
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${DOCKER_IMAGE} ."
+                }
+            }
+        }
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Log in to Docker Hub
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKER_CREDENTIALS_ID}") {
-                        // Push the Docker image
-                        docker.image("${DOCKER_IMAGE_NAME}").push()
+                    withDockerRegistry([credentialsId: DOCKER_CREDENTIALS_ID, url: 'https://index.docker.io/v1/']) {
+                        sh "docker push ${DOCKER_IMAGE}"
                     }
                 }
             }
         }
     }
-
     post {
+        always {
+            echo 'Pipeline completed.'
+        }
         success {
-            echo 'Pipeline executed successfully!'
+            echo 'Build was successful!'
         }
         failure {
             echo 'Pipeline failed. Please check the logs.'
         }
     }
 }
+
